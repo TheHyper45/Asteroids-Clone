@@ -35,8 +35,6 @@ int main()
 		return 1;
 	}
 
-	SDL_SetRenderDrawColor(renderer,0,128,255,255);
-
 	SDL_Event event{};
 	bool is_running = true;
 	while(is_running)
@@ -50,7 +48,19 @@ int main()
 				break;
 			}
 		}
+
+		SDL_SetRenderDrawColor(renderer,0,128,255,255);
 		SDL_RenderClear(renderer);
+
+		SDL_Rect rect{};
+		rect.x = 50;
+		rect.y = 50;
+		rect.w = 50;
+		rect.h = 50;
+
+		SDL_SetRenderDrawColor(renderer,255,255,255,255);
+		SDL_RenderFillRect(renderer,&rect);
+
 		SDL_RenderPresent(renderer);
 	}
 	
