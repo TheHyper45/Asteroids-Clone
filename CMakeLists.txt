@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.8)
+if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+    message(FATAL_ERROR "In-source builds are not allowed.")
+endif()
 
 project(Asteroids45 VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(UNIX AND NOT APPLE)
     find_package(PkgConfig REQUIRED)
@@ -50,6 +54,18 @@ add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries(${PROJECT_NAME} ${SDL2_LIBRARY_PATH})
 target_link_libraries(${PROJECT_NAME} ${SDL2_IMAGE_LIBRARY_PATH})
 set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
+
+add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E remove_directory
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/Assets
+)
+add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_SOURCE_DIR}/Assets"
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/Assets
+)
 
 if(MSVC)
     set_target_properties(${PROJECT_NAME} PROPERTIES VS_STARTUP_PROJECT ${CMAKE_CURRENT_BINARY_DIR})
