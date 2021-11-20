@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 if(UNIX AND NOT APPLE)
     find_package(PkgConfig REQUIRED)
-    pkg_search_moduleSDL2 REQUIRED sdl2)
+    pkg_search_module(SDL2 REQUIRED sdl2)
     pkg_search_module(SDL2IMAGE REQUIRED SDL2_image)
     set(SDL2_INCLUDE_PATH ${SDL2_INCLUDE_DIRS})
     set(SDL2_LIBRARY_PATH ${SDL2_LIBRARIES})
