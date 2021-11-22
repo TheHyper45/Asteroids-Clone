@@ -10,277 +10,8 @@
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 
-constexpr float CONSTANT_PI = 3.141592653589793f;
-
-bool equal(float a,float b)
-{
-	return std::abs(a - b) <= std::numeric_limits<float>::epsilon();
-}
-
-bool operator == (const SDL_FPoint& a,const SDL_FPoint& b)
-{
-	return equal(a.x,b.x) && equal(a.y,b.y);
-}
-
-bool intersect_rects(const SDL_FRect& a,const SDL_FRect& b)
-{
-	return ((a.x + a.w) >= b.x) && (a.x <= (b.x + b.w)) && ((a.y + a.h) >= b.y) && (a.y <= (b.y + b.h));
-}
-
-float magnitude(const SDL_FPoint& v)
-{
-	return std::hypot(v.x,v.y);
-}
-
-SDL_FPoint normalize(const SDL_FPoint& v)
-{
-	float n = magnitude(v);
-	return {v.x / n,v.y / n};
-}
-
-SDL_FPoint perpendicular(const SDL_FPoint& v)
-{
-	return {-v.y,v.x};
-}
-
-float dot_product(const SDL_FPoint& a,const SDL_FPoint& b)
-{
-	return a.x * b.x + a.y * b.y;
-}
-
-float distance(const SDL_FPoint& a,const SDL_FPoint& b)
-{
-	return std::hypot(b.x - a.x,b.y - a.y);
-}
-
-class mesh
-{
-public:
-	SDL_FPoint position;
-	float rotation;
-
-	mesh(const std::vector<SDL_FPoint>& _vertices)
-		: vertices(_vertices),position(),rotation(),transformed_vertices(),edge_normals(),
-		bounding_box(),transformed_bounding_box(),cache_position(),cache_rotation()
-	{}
-	mesh(const mesh& other)
-		: position(other.position),rotation(other.rotation),vertices(other.vertices),transformed_vertices(other.transformed_vertices),
-		edge_normals(other.edge_normals),bounding_box(other.bounding_box),transformed_bounding_box(other.bounding_box),
-		cache_position(other.cache_position),cache_rotation(other.cache_rotation)
-	{}
-	mesh(mesh&& other) noexcept
-		 : position(other.position),rotation(other.rotation),vertices(std::move(other.vertices)),transformed_vertices(std::move(other.transformed_vertices)),
-		 edge_normals(std::move(other.edge_normals)),bounding_box(other.bounding_box),transformed_bounding_box(other.bounding_box),
-		 cache_position(other.cache_position),cache_rotation(other.cache_rotation)
-	{
-		other.position = {};
-		other.rotation = 0;
-		other.bounding_box = {};
-		other.transformed_bounding_box = {};
-		other.cache_position = {};
-		other.cache_rotation = 0;
-	}
-	mesh& operator = (const mesh& other)
-	{
-		if(&other != this)
-		{
-			position = other.position;
-			rotation = other.rotation;
-			vertices = other.vertices;
-			transformed_vertices = other.transformed_vertices;
-			bounding_box = other.bounding_box;
-			transformed_bounding_box = other.transformed_bounding_box;
-			edge_normals = other.edge_normals;
-			cache_position = other.cache_position;
-			cache_rotation = other.cache_rotation;
-		}
-		return *this;
-	}
-	mesh& operator = (mesh&& other) noexcept
-	{
-		if(&other != this)
-		{
-			position = other.position;
-			rotation = other.rotation;
-			vertices = std::move(other.vertices);
-			transformed_vertices = std::move(other.transformed_vertices);
-			bounding_box = other.bounding_box;
-			transformed_bounding_box = other.transformed_bounding_box;
-			edge_normals = std::move(other.edge_normals);
-			cache_position = other.cache_position;
-			cache_rotation = other.cache_rotation;
-		}
-		return *this;
-	}
-
-	bool check_collision_with(const mesh& other) const
-	{
-		if(!intersect_rects(bounding_box,other.bounding_box))
-		{
-			return false;
-		}
-
-		auto for_each_normal = [](	const std::vector<SDL_FPoint>& in_normals,
-									const std::vector<SDL_FPoint>& transformed_vertices,
-									const std::vector<SDL_FPoint>& other_transformed_vertices	)
-		{
-			for(const auto& normal : in_normals)
-			{
-				float min = std::numeric_limits<float>::infinity();
-				float max = std::numeric_limits<float>::infinity();
-				float other_min = std::numeric_limits<float>::infinity();
-				float other_max = std::numeric_limits<float>::infinity();
-				for(const auto& vertex : transformed_vertices)
-				{
-					float value = dot_product(normal,vertex);
-					if(std::isinf(min) || value < min)
-					{
-						min = value;
-					}
-					if(std::isinf(max) || value > max)
-					{
-						max = value;
-					}
-				}
-				for(const auto& vertex : other_transformed_vertices)
-				{
-					float value = dot_product(normal,vertex);
-					if(std::isinf(other_min) || value < other_min)
-					{
-						other_min = value;
-					}
-					if(std::isinf(other_max) || value > other_max)
-					{
-						other_max = value;
-					}
-				}
-				if(!((min < other_max && min > other_min) || (other_min < max && other_min > min)))
-				{
-					return false;
-				}
-			}
-			return true;
-		};
-		if(!for_each_normal(edge_normals,transformed_vertices,other.transformed_vertices))
-		{
-			return false;
-		}
-		return for_each_normal(other.edge_normals,transformed_vertices,other.transformed_vertices);
-	}
-
-	void update()
-	{
-		if(position != cache_position || !equal(rotation,cache_rotation))
-		{
-			transformed_vertices.clear();
-			bounding_box = {};
-			transformed_bounding_box = {};
-			edge_normals.clear();
-			SDL_FPoint bbmin{
-				std::numeric_limits<float>::infinity(),
-				std::numeric_limits<float>::infinity()
-			};
-			SDL_FPoint bbmax{
-				std::numeric_limits<float>::infinity(),
-				std::numeric_limits<float>::infinity()
-			};
-			SDL_FPoint bbmin_transformed{
-				std::numeric_limits<float>::infinity(),
-				std::numeric_limits<float>::infinity()
-			};
-			SDL_FPoint bbmax_transformed{
-				std::numeric_limits<float>::infinity(),
-				std::numeric_limits<float>::infinity()
-			};
-			for(const auto& vertex : vertices)
-			{
-				SDL_FPoint new_point{};
-				new_point.x = std::cos(rotation) * vertex.x - std::sin(rotation) * vertex.y + position.x;
-				new_point.y = std::sin(rotation) * vertex.x + std::cos(rotation) * vertex.y + position.y;
-
-				if(std::isinf(bbmin_transformed.x) || bbmin_transformed.x > new_point.x)
-				{
-					bbmin_transformed.x = new_point.x;
-				}
-				if(std::isinf(bbmin_transformed.y) || bbmin_transformed.y > new_point.y)
-				{
-					bbmin_transformed.y = new_point.y;
-				}
-				if(std::isinf(bbmax_transformed.x) || bbmax_transformed.x < new_point.x)
-				{
-					bbmax_transformed.x = new_point.x;
-				}
-				if(std::isinf(bbmax_transformed.y) || bbmax_transformed.y < new_point.y)
-				{
-					bbmax_transformed.y = new_point.y;
-				}
-				transformed_vertices.push_back(new_point);
-
-				if(std::isinf(bbmin.x) || bbmin.x > vertex.x)
-				{
-					bbmin.x = vertex.x;
-				}
-				if(std::isinf(bbmin.y) || bbmin.y > vertex.y)
-				{
-					bbmin.y = vertex.y;
-				}
-				if(std::isinf(bbmax.x) || bbmax.x < vertex.x)
-				{
-					bbmax.x = vertex.x;
-				}
-				if(std::isinf(bbmax.y) || bbmax.y < vertex.y)
-				{
-					bbmax.y = vertex.y;
-				}
-			}
-			bounding_box.x = bbmin.x;
-			bounding_box.y = bbmin.y;
-			bounding_box.w = bbmax.x - bbmin.x;
-			bounding_box.h = bbmax.y - bbmin.y;
-			transformed_bounding_box.x = bbmin_transformed.x;
-			transformed_bounding_box.y = bbmin_transformed.y;
-			transformed_bounding_box.w = bbmax_transformed.x - bbmin_transformed.x;
-			transformed_bounding_box.h = bbmax_transformed.y - bbmin_transformed.y;
-
-			std::size_t length = transformed_vertices.size();
-			for(std::size_t i = 0;i < length;++i)
-			{
-				SDL_FPoint current = transformed_vertices[i];
-				SDL_FPoint next = transformed_vertices[(i + 1) % length];
-				SDL_FPoint diff{
-					next.x - current.x,
-					next.y - current.y
-				};
-				edge_normals.push_back(perpendicular(normalize(diff)));
-			}
-			cache_position = position;
-			cache_rotation = rotation;
-		}
-	}
-
-	const std::vector<SDL_FPoint>& get_transformed_vertices() const
-	{
-		return transformed_vertices;
-	}
-
-	const SDL_FRect& get_bounding_box() const
-	{
-		return bounding_box;
-	}
-
-	const SDL_FRect& get_transformed_bounding_box() const
-	{
-		return transformed_bounding_box;
-	}
-private:
-	SDL_FPoint cache_position{};
-	float cache_rotation{};
-	std::vector<SDL_FPoint> vertices;
-	std::vector<SDL_FPoint> transformed_vertices;
-	SDL_FRect bounding_box{};
-	SDL_FRect transformed_bounding_box{};
-	std::vector<SDL_FPoint> edge_normals{};
-};
+#include "utility.hpp"
+#include "entities.hpp"
 
 class entity
 {
@@ -293,7 +24,7 @@ public:
 	std::uintmax_t rock_index;
 	std::uintmax_t rock_pass_count;
 
-	entity(SDL_FPoint _position,float _rotation,float _move_speed,float _rotation_speed,const mesh& _mesh)
+	entity(SDL_FPoint _position,float _rotation,float _move_speed,float _rotation_speed,const asteroids::mesh& _mesh)
 		: position(_position),rotation(_rotation),move_speed(_move_speed),rotation_speed(_rotation_speed),mesh(_mesh),destroyed(false),rock_index(),rock_pass_count()
 	{
 		update();
@@ -371,15 +102,15 @@ public:
 		return {std::cos(rotation),std::sin(rotation)};
 	}
 
-	const mesh& get_mesh() const
+	const asteroids::mesh& get_mesh() const
 	{
 		return mesh;
 	}
 private:
-	mesh mesh;
+	asteroids::mesh mesh;
 };
 
-void render_mesh(SDL_Renderer* renderer,const mesh& mesh)
+void render_mesh(SDL_Renderer* renderer,const asteroids::mesh& mesh)
 {
 	const auto& vertices = mesh.get_transformed_vertices();
 	if(vertices.size() > 0)
@@ -474,7 +205,7 @@ int main()
 
 	entity player{{window_width / 2.0f,window_height / 2.0f},0,300,3,{std::vector<SDL_FPoint>{{-30,-30},{30,0},{-30,30}}}};
 
-	std::vector<mesh> big_rock_meshes{
+	std::vector<asteroids::mesh> big_rock_meshes{
 		{std::vector<SDL_FPoint>{
 			{-20,-55},
 			{50,-50},
@@ -490,7 +221,7 @@ int main()
 		}}
 	};
 
-	std::vector<mesh> small_rock_meshes{
+	std::vector<asteroids::mesh> small_rock_meshes{
 		{std::vector<SDL_FPoint>{
 			{-10,-20},
 			{0,-10},
@@ -502,7 +233,7 @@ int main()
 	std::uniform_int_distribution<std::size_t> big_rock_random_range{0,big_rock_meshes.size() - 1};
 	std::uniform_int_distribution<std::size_t> small_rock_random_range{0,small_rock_meshes.size() - 1};
 
-	std::uniform_real_distribution<float> angle_random_range{0,CONSTANT_PI * 2.0f};
+	std::uniform_real_distribution<float> angle_random_range{0,asteroids::CONSTANT_PI * 2.0f};
 
 	std::vector<entity> rocks{};
 	std::vector<entity> bullets{};
@@ -518,7 +249,7 @@ int main()
 		{-25,384}
 	};
 
-	mesh bullet_mesh{std::vector<SDL_FPoint>{
+	asteroids::mesh bullet_mesh{std::vector<SDL_FPoint>{
 		{-2.5f,-2.5f},
 		{+2.5f,-2.5f},
 		{+2.5f,+2.5f},
@@ -726,7 +457,7 @@ int main()
 			if(big_rock_count < 3)
 			{
 				std::sort(rock_spawn_points.begin(),rock_spawn_points.end(),[&](const SDL_FPoint& a,const SDL_FPoint& b){
-					return distance(player.position,a) < distance(player.position,b);
+					return asteroids::distance(player.position,a) < asteroids::distance(player.position,b);
 				});
 
 				SDL_FPoint furthest = rock_spawn_points.back();
@@ -740,7 +471,7 @@ int main()
 		}
 
 		player.update();
-		const mesh& player_mesh = player.get_mesh();
+		const asteroids::mesh& player_mesh = player.get_mesh();
 		for(auto& rock : rocks)
 		{
 			rock.position.x += rock.get_forward().x * rock.move_speed * delta_time;
@@ -789,7 +520,7 @@ int main()
 			rock.update();
 			if(!player_dead && invulnerability_timer <= 0)
 			{
-				const mesh& rock_mesh = rock.get_mesh();
+				const asteroids::mesh& rock_mesh = rock.get_mesh();
 				if(rock_mesh.check_collision_with(player_mesh))
 				{
 					respawn_timer = respawn_timer_max;
@@ -809,7 +540,7 @@ int main()
 			bullet.position.x += bullet.get_forward().x * bullet.move_speed * delta_time;
 			bullet.position.y += bullet.get_forward().y * bullet.move_speed * delta_time;
 			bullet.update();
-			const mesh& bullet_mesh = bullet.get_mesh();
+			const asteroids::mesh& bullet_mesh = bullet.get_mesh();
 			const SDL_FRect bullet_bounding_box = bullet_mesh.get_transformed_bounding_box();
 
 			if(((bullet_bounding_box.x + bullet_bounding_box.w) <= 0) ||
@@ -823,7 +554,7 @@ int main()
 			{
 				for(auto& rock : rocks)
 				{
-					const mesh& rock_mesh = rock.get_mesh();
+					const asteroids::mesh& rock_mesh = rock.get_mesh();
 					if(rock_mesh.check_collision_with(bullet_mesh))
 					{
 						score += ((rock.rock_index == 3) ? 100 : 150);
