@@ -1,4 +1,4 @@
-Asteroids45 - Simple game based on Asteroids game.
+Asteroids clone.
 Copyright (C) 2021 Dawid Michalak (TheHyper45)
 
 This program is free software: you can redistribute it and/or modify
