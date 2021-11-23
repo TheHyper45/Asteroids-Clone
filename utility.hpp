@@ -5,7 +5,7 @@
 
 namespace asteroids
 {
-	constexpr float CONSTANT_PI = 3.141592653589793f;
+	inline constexpr float CONSTANT_PI = 3.141592653589793f;
 
 	bool equal(float a,float b);
 	float magnitude(const SDL_FPoint& v);

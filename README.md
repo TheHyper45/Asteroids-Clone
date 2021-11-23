@@ -1,5 +1,5 @@
-# Asteroids45
-The clone of game Asteroids.
+# Asteroids
+The clone of game Asteroids.<br>
 I wrote this game to practise using Git and CMake.
 
 ### Compiling
@@ -17,6 +17,17 @@ On both systems install CMake.
     Install libraries: SDL2 and SDL2_image.<br>
     Run CMake to create Makefile.<br>
     Run make to create the executable.
+
+### Player movement
+
+|  Movement  |   Binding   |
+| ---------  | ----------- |
+| Accelerate | Arrow Up    |
+| Decelerate | Arrow Down  |
+| Turn Left  | Arrow Left  |
+| Turn Right | Arrow Right |
+|   Shoot    |     X       |
+|   Quit     |   Escape    |
 
 ### License
 This code is distributed under GPL 3.0 license.
