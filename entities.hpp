@@ -2,6 +2,7 @@
 #define ASTEROIDS_ENTITIES_HPP
 
 #include <vector>
+#include <cstdint>
 #include <SDL_rect.h>
 
 namespace asteroids
@@ -50,7 +51,7 @@ namespace asteroids
 		SDL_FPoint get_forward() const;
 
 	private:
-		mesh mesh;
+		mesh $mesh;
 		SDL_FPoint forward{};
 	};
 

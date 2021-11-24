@@ -175,21 +175,21 @@ namespace asteroids
 	}
 
 	entity::entity(SDL_FPoint _position,float _rotation,float _move_speed,float _rotation_speed,const asteroids::mesh & _mesh)
-		: position(_position),rotation(_rotation),move_speed(_move_speed),rotation_speed(_rotation_speed),mesh(_mesh)
+		: position(_position),rotation(_rotation),move_speed(_move_speed),rotation_speed(_rotation_speed),$mesh(_mesh)
 	{
 		update();
 	}
 
 	entity::entity(const entity& _entity)
 		: position(_entity.position),rotation(_entity.rotation),move_speed(_entity.move_speed),
-			rotation_speed(_entity.rotation_speed),mesh(_entity.mesh),destroyed(_entity.destroyed),forward(_entity.forward)
+			rotation_speed(_entity.rotation_speed),$mesh(_entity.$mesh),destroyed(_entity.destroyed),forward(_entity.forward)
 	{
 		update();
 	}
 
 	entity::entity(entity&& _entity) noexcept
 		: position(_entity.position),rotation(_entity.rotation),move_speed(_entity.move_speed),
-		rotation_speed(_entity.rotation_speed),mesh(std::move(_entity.mesh)),destroyed(_entity.destroyed),forward(_entity.forward)
+		rotation_speed(_entity.rotation_speed),$mesh(std::move(_entity.$mesh)),destroyed(_entity.destroyed),forward(_entity.forward)
 	{
 		update();
 	}
@@ -202,7 +202,7 @@ namespace asteroids
 			rotation = _entity.rotation;
 			move_speed = _entity.move_speed;
 			rotation_speed = _entity.rotation_speed;
-			mesh = _entity.mesh;
+			$mesh = _entity.$mesh;
 			destroyed = _entity.destroyed;
 			forward = _entity.forward;
 			update();
@@ -218,26 +218,26 @@ namespace asteroids
 			rotation = _entity.rotation;
 			move_speed = _entity.move_speed;
 			rotation_speed = _entity.rotation_speed;
-			mesh = std::move(_entity.mesh);
+			$mesh = std::move(_entity.$mesh);
 			destroyed = _entity.destroyed;
 			forward = _entity.forward;
-			_entity.mesh = {{}};
+			_entity.$mesh = {{}};
 		}
 		return *this;
 	}
 
 	void entity::update()
 	{
-		mesh.position = position;
-		mesh.rotation = rotation;
-		mesh.update();
+		$mesh.position = position;
+		$mesh.rotation = rotation;
+		$mesh.update();
 		forward.x = std::cos(rotation);
 		forward.y = std::sin(rotation);
 	}
 
 	const mesh& entity::get_mesh() const
 	{
-		return mesh;
+		return $mesh;
 	}
 
 	SDL_FPoint entity::get_forward() const

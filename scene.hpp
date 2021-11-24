@@ -3,6 +3,7 @@
 
 #include <array>
 #include <random>
+#include <cstdint>
 #include <SDL_keycode.h>
 #include "utility.hpp"
 #include "entities.hpp"
@@ -82,7 +83,7 @@ namespace asteroids
 
 	struct rock_template
 	{
-		mesh mesh;
+		mesh $mesh;
 		float speed;
 		std::uintmax_t aword_points;
 		bool spawns_smaller_rocks_on_desstruction;
@@ -126,7 +127,7 @@ namespace asteroids
 		const std::vector<ufo>& get_ufos() const;
 	private:
 		std::mt19937_64 random_engine{};
-		player player;
+		player $player;
 		std::vector<rock> rocks{};
 		float max_rock_spawn_timer{};
 		float rock_spawn_timer{};
